@@ -1,0 +1,88 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+// Define I2C LCD (0x27 is the I2C address)
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// Pin definitions
+const int tempSensorPin = A0;  // LM35 connected to A0
+const int relayPin = 7;        // Relay connected to D7
+const int buzzerPin = 8;       // Buzzer connected to D8
+const int incButtonPin = 2;    // Increment button
+const int decButtonPin = 3;    // Decrement button
+
+// Variables
+float temperature = 0;
+int tempThreshold = 120;       // Default threshold temperature (120°C)
+bool alarmActive = false;
+
+void setup() {
+  // Initialize LCD
+  lcd.begin();
+  lcd.backlight();
+  
+  // Setup pin modes
+  pinMode(tempSensorPin, INPUT);
+  pinMode(relayPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
+  pinMode(incButtonPin, INPUT_PULLUP);  // Use internal pull-up resistor
+  pinMode(decButtonPin, INPUT_PULLUP);  // Use internal pull-up resistor
+  
+  // Initial relay and buzzer states
+  digitalWrite(relayPin, LOW);  // Turn off relay (heater)
+  digitalWrite(buzzerPin, LOW); // Turn off buzzer
+  
+  // Display initial message on LCD
+  lcd.setCursor(0, 0);
+  lcd.print("Temp Control Sys");
+  lcd.setCursor(0, 1);
+  lcd.print("Threshold: ");
+  lcd.print(tempThreshold);
+  delay(2000);  // Display message for 2 seconds
+  lcd.clear();
+}
+
+void loop() {
+  // Read temperature from LM35 sensor
+  int sensorValue = analogRead(tempSensorPin);
+  temperature = (sensorValue / 1024.0) * 500.0;  // Convert to Celsius
+
+  // Display temperature on LCD
+  lcd.setCursor(0, 0);
+  lcd.print("Temp: ");
+  lcd.print(temperature);
+  lcd.print(" C");
+
+  // Display threshold on LCD
+  lcd.setCursor(0, 1);
+  lcd.print("Set Point: ");
+  lcd.print(tempThreshold);
+  lcd.print(" C");
+
+  // Check for temperature threshold exceedance
+  if (temperature > tempThreshold) {
+    // Activate buzzer and turn off heater (relay)
+    digitalWrite(buzzerPin, HIGH);
+    digitalWrite(relayPin, LOW);  // Turn off heater
+    alarmActive = true;
+  } else {
+    // Deactivate buzzer and turn on heater (relay)
+    digitalWrite(buzzerPin, LOW);
+    digitalWrite(relayPin, HIGH); // Turn on heater
+    alarmActive = false;
+  }
+
+  // Check if increment or decrement button is pressed
+  if (digitalRead(incButtonPin) == LOW) {
+    tempThreshold++;
+    delay(300);  // Debounce delay
+  }
+
+  if (digitalRead(decButtonPin) == LOW) {
+    tempThreshold--;
+    delay(300);  // Debounce delay
+  }
+
+  // Short delay for stability
+  delay(200);
+}
